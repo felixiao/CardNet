@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 public abstract class Server
 {
     public int port=11791;
@@ -112,7 +113,9 @@ public class ServerTCP : Server
             {
                 //TcpClient client = l.EndAcceptTcpClient(ar);
                 TcpClient client = listener.EndAcceptTcpClient(ar);
+                MessageHandler handler=new MessageHandler();
                 clients.Add(client);
+                ThreadPool.QueueUserWorkItem((object state) => handler.Process());
                 //l.BeginAcceptTcpClient(new AsyncCallback(OnAccept), l);
                 listener.BeginAcceptTcpClient(new AsyncCallback(OnAccept), null);
             }
@@ -123,12 +126,32 @@ public class ServerTCP : Server
         }
         
     }
-
+    
 }
 public class ServerClientTCP
 {
 
 }
+
+public class MessageHandler
+{
+    TcpClient client;
+    List<ArraySegment<byte>> receBuffer=new List<ArraySegment<byte>>();
+    List<ArraySegment<byte>> sendBuffer = new List<ArraySegment<byte>>();
+    public void Process()
+    {
+        client.Client.BeginReceive(receBuffer, SocketFlags.None, new AsyncCallback(OnReceive), null);
+        
+    }
+    public void OnReceive(IAsyncResult ar)
+    {
+        SocketError errorCode;
+        int bytesCount=client.Client.EndReceive(ar, out errorCode);
+
+        client.Client.BeginReceive(sendBuffer, SocketFlags.None, new AsyncCallback(OnReceive), null);
+    }
+}
+
 public class ServerUDP : Server
 {
     #region Singleton
